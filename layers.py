@@ -115,7 +115,7 @@ class RNNEncoder(nn.Module):
         return x
 
 
-class BiDAFAttention(nn.Module):
+class BiDAFAttention2(nn.Module):
     """Bidirectional attention originally used by BiDAF.
 
     Bidirectional attention computes attention in two directions:
@@ -181,6 +181,64 @@ class BiDAFAttention(nn.Module):
         s = s0 + s1 + s2 + self.bias
 
         return s
+
+
+class BiDAFAttention(nn.Module):
+    """Bidirectional attention originally used by BiDAF.
+
+    Bidirectional attention computes attention in two directions:
+    The context attends to the query and the query attends to the context.
+    The output of this layer is the concatenation of [context, c2q_attention,
+    context * c2q_attention, context * q2c_attention]. This concatenation allows
+    the attention vector at each timestep, along with the embeddings from
+    previous layers, to flow through the attention layer to the modeling layer.
+    The output has shape (batch_size, context_len, 8 * hidden_size).
+
+    Args:
+        hidden_size (int): Size of hidden activations.
+        drop_prob (float): Probability of zero-ing out activations.
+    """
+    def __init__(self, hidden_size, drop_prob=0.1):
+        super(Coattention, self).__init__()
+        self.drop_prob = drop_prob
+        self.W = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.c_bias = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.q_bias = nn.Parameter(torch.zeros(hidden_size, 1))
+
+        self.c_weight = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.q_weight = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.cq_weight = nn.Parameter(torch.zeros(1, 1, hidden_size))
+        for weight in (self.c_weight, self.q_weight, self.cq_weight):
+            nn.init.xavier_uniform_(weight)
+        self.bias = nn.Parameter(torch.zeros(1))
+
+    def forward(self, c, q, c_mask, q_mask):
+        batch_size, c_len, hid_size = c.size()
+        q_len = q.size(1)
+
+        c = F.dropout(c, self.drop_prob, self.training)  # (bs, c_len, hid_size)
+        q = F.dropout(q, self.drop_prob, self.training)  # (bs, q_len, hid_size)
+        c = torch.cat([c, self.c_bias.transpose(0,1).expand((batch_size, 1, hid_size))], dim=1)
+        q_prime = F.tanh(q @ self.W + self.b)
+        q_prime = torch.cat([q_prime, self.q_bias.transpose(0, 1).expand((batch_size, 1, hid_size))], dim=1)
+        L = c @ q_prime.transpose(1, 2)
+
+        alpha = torch.softmax(L, dim=2)
+        a = q_prime.view(q_prime.shape+(1,)) * alpha.view((batch_size, 1) + alpha.shape[2:])
+        a = torch.sum(a, dim=2)
+
+        beta = torch.softmax(L, dim=1).transpose((1,2))
+        b = c.view(c.shape + (1,)) * beta.view((batch_size, 1) + beta.shape[2:])
+        b = torch.sum(b, dim=2)
+
+        s = b.view(b.shape + (1,)) * alpha.view((batch_size, 1) + alpha.shape[2:])
+        s = torch.sum(s, dim=2)
+
+        x = torch.cat([s[:, :-1, :], a[:, :-1, :], s[:, :-1, :], a[:, :-1, :]], dim=2)  # (bs, c_len, 2 * hid_size)
+
+        return x
+
 
 
 class BiDAFOutput(nn.Module):
