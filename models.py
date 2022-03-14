@@ -136,15 +136,15 @@ class Coattention(nn.Module):
         return out
 
 class Combo(nn.Module):
-    def __init__(self, word_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, model1, model2):
         super(Combo, self).__init__()
-        self.bidaf = BiDAF(word_vectors, hidden_size, drop_prob)
-        self.coat = Coattention(word_vectors, hidden_size, drop_prob)
+        self.bidaf = model1
+        self.coat = model2
 
     def forward(self, cw_idxs, qw_idxs):
         b_start, b_end = self.bidaf(cw_idxs, qw_idxs) # 2 tensors, each (batch_size, c_len)
         c_start, c_end = self.coat(cw_idxs, qw_idxs)
-        start, end = (b_start*c_start)/torch.sum(b_start*c_start, dim=1), (b_end*c_end)/torch.sum(b_end*c_end, dim=1)
+        start, end = (b_start*c_start)/torch.sum(b_start*c_start, dim=1).view((-1,1)), (b_end*c_end)/torch.sum(b_end*c_end, dim=1).view((-1,1))
 
         return start, end
 

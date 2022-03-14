@@ -1,12 +1,10 @@
 """Test a model and generate submission CSV.
-
 Usage:
     > python test.py --split SPLIT --load_path PATH --name NAME
     where
     > SPLIT is either "dev" or "test"
     > PATH is a path to a checkpoint (e.g., save/train/model-01/best.pth.tar)
     > NAME is a name to identify the test run
-
 Author:
     Chris Chute (chute@stanford.edu)
 """
@@ -21,7 +19,7 @@ import util
 from args import get_test_args
 from collections import OrderedDict
 from json import dumps
-from models import BiDAF, Coattention, Combo
+from models import BiDAF, Coattention
 from os.path import join
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
@@ -43,25 +41,12 @@ def main(args):
 
     # Get model
     log.info('Building model...')
-    '''model = BiDAF(word_vectors=word_vectors,
+    model = Coattention(word_vectors=word_vectors,
                   hidden_size=args.hidden_size)
-    model = nn.DataParallel(model, gpu_ids)'''
-    model1 = BiDAF(word_vectors=word_vectors,
-                   hidden_size=args.hidden_size,
-                   )
-    model1 = nn.DataParallel(model1, gpu_ids)
-    model2 = Coattention(word_vectors=word_vectors,
-                         hidden_size=args.hidden_size,
-                         )
-    model2 = nn.DataParallel(model2, gpu_ids)
+    model = nn.DataParallel(model, gpu_ids)
     log.info(f'Loading checkpoint from {args.load_path}...')
-    # model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
-    # model = model.to(device)
-    model1 = util.load_model(model1, args.load_path.split('x')[0], gpu_ids, return_step=False)
-    model2 = util.load_model(model2, args.load_path.split('x')[1], gpu_ids, return_step=False)
-    model1 = model1.to(device)
-    model2 = model2.to(device)
-    model = Combo(model1, model2)
+    model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
+    model = model.to(device)
     model.eval()
 
     # Get data loader
