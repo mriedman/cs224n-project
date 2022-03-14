@@ -214,6 +214,7 @@ class BiDAFAttention(nn.Module):
         self.bias = nn.Parameter(torch.zeros(1))
 
     def forward(self, c, q, c_mask, q_mask):
+
         batch_size, c_len, hid_size = c.size()
         q_len = q.size(1)
 
@@ -225,14 +226,14 @@ class BiDAFAttention(nn.Module):
         L = c @ q_prime.transpose(1, 2)
 
         alpha = torch.softmax(L, dim=2)
-        a = q_prime.view(q_prime.shape+(1,)) * alpha.view(alpha.shape[0] + (1,) + alpha.shape[2:])
+        a = q_prime.view(q_prime.shape[:1]+(1,)+q_prime.shape[1:]) * alpha.view(alpha.shape + (1,))
         a = torch.sum(a, dim=2)
 
-        beta = torch.softmax(L, dim=1).transpose((1,2))
-        b = c.view(c.shape + (1,)) * beta.view((batch_size, 1) + beta.shape[2:])
+        beta = torch.softmax(L, dim=1).transpose(1,2)
+        b = c.view((batch_size,1)+c.shape[1:]) * beta.view(beta.shape+(1,))
         b = torch.sum(b, dim=2)
 
-        s = b.view(b.shape + (1,)) * alpha.view((batch_size, 1) + alpha.shape[2:])
+        s = b.view((batch_size,1)+b.shape[1:]) * alpha.view(alpha.shape+(1,))
         s = torch.sum(s, dim=2)
 
         x = torch.cat([s[:, :-1, :], a[:, :-1, :], s[:, :-1, :], a[:, :-1, :]], dim=2)  # (bs, c_len, 2 * hid_size)
