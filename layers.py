@@ -131,7 +131,7 @@ class BiDAFAttention2(nn.Module):
         drop_prob (float): Probability of zero-ing out activations.
     """
     def __init__(self, hidden_size, drop_prob=0.1):
-        super(BiDAFAttention, self).__init__()
+        super(BiDAFAttention2, self).__init__()
         self.drop_prob = drop_prob
         self.c_weight = nn.Parameter(torch.zeros(hidden_size, 1))
         self.q_weight = nn.Parameter(torch.zeros(hidden_size, 1))
@@ -199,7 +199,7 @@ class BiDAFAttention(nn.Module):
         drop_prob (float): Probability of zero-ing out activations.
     """
     def __init__(self, hidden_size, drop_prob=0.1):
-        super(Coattention, self).__init__()
+        super(BiDAFAttention, self).__init__()
         self.drop_prob = drop_prob
         self.W = nn.Parameter(torch.zeros(hidden_size, hidden_size))
         self.b = nn.Parameter(torch.zeros(hidden_size, 1))
@@ -220,12 +220,12 @@ class BiDAFAttention(nn.Module):
         c = F.dropout(c, self.drop_prob, self.training)  # (bs, c_len, hid_size)
         q = F.dropout(q, self.drop_prob, self.training)  # (bs, q_len, hid_size)
         c = torch.cat([c, self.c_bias.transpose(0,1).expand((batch_size, 1, hid_size))], dim=1)
-        q_prime = F.tanh(q @ self.W + self.b)
+        q_prime = F.tanh(q @ self.W + self.b.view(-1))
         q_prime = torch.cat([q_prime, self.q_bias.transpose(0, 1).expand((batch_size, 1, hid_size))], dim=1)
         L = c @ q_prime.transpose(1, 2)
 
         alpha = torch.softmax(L, dim=2)
-        a = q_prime.view(q_prime.shape+(1,)) * alpha.view((batch_size, 1) + alpha.shape[2:])
+        a = q_prime.view(q_prime.shape+(1,)) * alpha.view(alpha.shape[0] + (1,) + alpha.shape[2:])
         a = torch.sum(a, dim=2)
 
         beta = torch.softmax(L, dim=1).transpose((1,2))
