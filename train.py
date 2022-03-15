@@ -61,8 +61,8 @@ def main(args):
     if args.load_path:
         log.info(f'Loading checkpoint from {args.load_path}...')
         # model, step = util.load_model(model, args.load_path, args.gpu_ids)
-        model1, step1 = util.load_model(model1, args.load_path.split('|')[0], args.gpu_ids)
-        model2, step2 = util.load_model(model2, args.load_path.split('|')[1], args.gpu_ids)
+        model1, step1 = util.load_model(model1, args.load_path.split('x')[0], args.gpu_ids)
+        model2, step2 = util.load_model(model2, args.load_path.split('x')[1], args.gpu_ids)
         model = Combo2(model1, model2, args.hidden_size, args.drop_prob)
         step = 0
     else:

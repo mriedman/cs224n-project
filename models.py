@@ -52,7 +52,7 @@ class BiDAF(nn.Module):
                                       drop_prob=drop_prob)
 
 
-    def forward(self, cw_idxs, qw_idxs):
+    def forward2(self, cw_idxs, qw_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
@@ -72,7 +72,7 @@ class BiDAF(nn.Module):
 
         return out
 
-    def forward2(self, cw_idxs, qw_idxs):
+    def forward(self, cw_idxs, qw_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
@@ -88,7 +88,7 @@ class BiDAF(nn.Module):
 
         mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
 
-        return mod
+        return mod, att, c_mask
 
 class Coattention(nn.Module):
     """Baseline BiDAF model for SQuAD.
@@ -133,7 +133,7 @@ class Coattention(nn.Module):
         self.out = layers.BiDAFOutput(hidden_size=hidden_size,
                                       drop_prob=drop_prob)
 
-    def forward(self, cw_idxs, qw_idxs):
+    def forward2(self, cw_idxs, qw_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
@@ -153,7 +153,7 @@ class Coattention(nn.Module):
 
         return out
 
-    def forward2(self, cw_idxs, qw_idxs):
+    def forward(self, cw_idxs, qw_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
@@ -169,7 +169,7 @@ class Coattention(nn.Module):
 
         mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
 
-        return mod
+        return mod, att, c_mask
 
 class Combo(nn.Module):
     def __init__(self, model1, model2):
@@ -193,9 +193,9 @@ class Combo2(nn.Module):
                                       drop_prob=drop_prob)
 
     def forward(self, cw_idxs, qw_idxs):
-        b_mod = self.bidaf.forward2(cw_idxs, qw_idxs) # 2 tensors, each (batch_size, c_len)
-        c_mod = self.coat.forward2(cw_idxs, qw_idxs)
-        start, end = self.out(torch.cat([b_mod, c_mod], dim=2))
+        b_mod, ba, bm = self.bidaf(cw_idxs, qw_idxs) # 2 tensors, each (batch_size, c_len)
+        c_mod, ca, cm = self.coat(cw_idxs, qw_idxs)
+        start, end = self.out(torch.cat([ba,ca],dim=2),torch.cat([b_mod, c_mod], dim=2),bm)
 
         return start, end
 
