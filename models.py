@@ -72,6 +72,24 @@ class BiDAF(nn.Module):
 
         return out
 
+    def forward2(self, cw_idxs, qw_idxs):
+        c_mask = torch.zeros_like(cw_idxs) != cw_idxs
+        q_mask = torch.zeros_like(qw_idxs) != qw_idxs
+        c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
+
+        c_emb = self.emb(cw_idxs)         # (batch_size, c_len, hidden_size)
+        q_emb = self.emb(qw_idxs)         # (batch_size, q_len, hidden_size)
+
+        c_enc = self.enc(c_emb, c_len)    # (batch_size, c_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_len)    # (batch_size, q_len, 2 * hidden_size)
+
+        att = self.att(c_enc, q_enc,
+                       c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
+
+        mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+
+        return mod
+
 class Coattention(nn.Module):
     """Baseline BiDAF model for SQuAD.
 
@@ -135,6 +153,24 @@ class Coattention(nn.Module):
 
         return out
 
+    def forward2(self, cw_idxs, qw_idxs):
+        c_mask = torch.zeros_like(cw_idxs) != cw_idxs
+        q_mask = torch.zeros_like(qw_idxs) != qw_idxs
+        c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
+
+        c_emb = self.emb(cw_idxs)         # (batch_size, c_len, hidden_size)
+        q_emb = self.emb(qw_idxs)         # (batch_size, q_len, hidden_size)
+
+        c_enc = self.enc(c_emb, c_len)    # (batch_size, c_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_len)    # (batch_size, q_len, 2 * hidden_size)
+
+        att = self.att(c_enc, q_enc,
+                       c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
+
+        mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+
+        return mod
+
 class Combo(nn.Module):
     def __init__(self, model1, model2):
         super(Combo, self).__init__()
@@ -145,6 +181,21 @@ class Combo(nn.Module):
         b_start, b_end = self.bidaf(cw_idxs, qw_idxs) # 2 tensors, each (batch_size, c_len)
         c_start, c_end = self.coat(cw_idxs, qw_idxs)
         start, end = (b_start*c_start)/torch.sum(b_start*c_start, dim=1).view((-1,1)), (b_end*c_end)/torch.sum(b_end*c_end, dim=1).view((-1,1))
+
+        return start, end
+
+class Combo2(nn.Module):
+    def __init__(self, model1, model2, hidden_size, drop_prob):
+        super(Combo2, self).__init__()
+        self.bidaf = model1
+        self.coat = model2
+        self.out = layers.BiDAFOutput(hidden_size=hidden_size * 2,
+                                      drop_prob=drop_prob)
+
+    def forward(self, cw_idxs, qw_idxs):
+        b_mod = self.bidaf.forward2(cw_idxs, qw_idxs) # 2 tensors, each (batch_size, c_len)
+        c_mod = self.coat.forward2(cw_idxs, qw_idxs)
+        start, end = self.out(torch.cat([b_mod, c_mod], dim=2))
 
         return start, end
 

@@ -17,7 +17,7 @@ import util
 from args import get_train_args
 from collections import OrderedDict
 from json import dumps
-from models import BiDAF
+from models import BiDAF, Coattention, Combo2
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
@@ -46,13 +46,25 @@ def main(args):
 
     # Get model
     log.info('Building model...')
-    model = BiDAF(word_vectors=word_vectors,
+    '''model = BiDAF(word_vectors=word_vectors,
                   hidden_size=args.hidden_size,
                   drop_prob=args.drop_prob)
-    model = nn.DataParallel(model, args.gpu_ids)
+    model = nn.DataParallel(model, args.gpu_ids)'''
+    model1 = BiDAF(word_vectors=word_vectors,
+                  hidden_size=args.hidden_size,
+                  drop_prob=args.drop_prob)
+    model1 = nn.DataParallel(model1, args.gpu_ids)
+    model2 = Coattention(word_vectors=word_vectors,
+                   hidden_size=args.hidden_size,
+                   drop_prob=args.drop_prob)
+    model2 = nn.DataParallel(model2, args.gpu_ids)
     if args.load_path:
         log.info(f'Loading checkpoint from {args.load_path}...')
-        model, step = util.load_model(model, args.load_path, args.gpu_ids)
+        # model, step = util.load_model(model, args.load_path, args.gpu_ids)
+        model1, step1 = util.load_model(model1, args.load_path.split('|')[0], args.gpu_ids)
+        model2, step2 = util.load_model(model2, args.load_path.split('|')[1], args.gpu_ids)
+        model = Combo2(model1, model2, args.hidden_size, args.drop_prob)
+        step = 0
     else:
         step = 0
     model = model.to(device)
