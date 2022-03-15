@@ -336,7 +336,10 @@ def load_model(model, checkpoint_path, gpu_ids, return_step=True):
     ckpt_dict = torch.load(checkpoint_path, map_location=device)
 
     # Build model, load parameters
-    model.load_state_dict(ckpt_dict['model_state'])
+    states = ckpt_dict['model_state']
+    print(states.keys())
+    states2 = {'module.'+i:states[i] for i in states}
+    model.load_state_dict(states2)
 
     if return_step:
         step = ckpt_dict['step']

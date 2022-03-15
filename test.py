@@ -21,7 +21,7 @@ import util
 from args import get_test_args
 from collections import OrderedDict
 from json import dumps
-from models import BiDAF, Coattention, Combo
+from models import BiDAF, Coattention, Combo, Combo2
 from os.path import join
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
@@ -43,9 +43,6 @@ def main(args):
 
     # Get model
     log.info('Building model...')
-    '''model = BiDAF(word_vectors=word_vectors,
-                  hidden_size=args.hidden_size)
-    model = nn.DataParallel(model, gpu_ids)'''
     model1 = BiDAF(word_vectors=word_vectors,
                    hidden_size=args.hidden_size,
                    )
@@ -54,14 +51,17 @@ def main(args):
                          hidden_size=args.hidden_size,
                          )
     model2 = nn.DataParallel(model2, gpu_ids)
+    model = Combo2(model1, model2,
+                  hidden_size=args.hidden_size,drop_prob=0)
+    model = nn.DataParallel(model, gpu_ids)
     log.info(f'Loading checkpoint from {args.load_path}...')
-    # model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
-    # model = model.to(device)
-    model1 = util.load_model(model1, args.load_path.split('x')[0], gpu_ids, return_step=False)
+    model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
+    model = model.to(device)
+    '''model1 = util.load_model(model1, args.load_path.split('x')[0], gpu_ids, return_step=False)
     model2 = util.load_model(model2, args.load_path.split('x')[1], gpu_ids, return_step=False)
     model1 = model1.to(device)
     model2 = model2.to(device)
-    model = Combo(model1, model2)
+    model = Combo2(model1, model2, args.hidden_size, 0)'''
     model.eval()
 
     # Get data loader
